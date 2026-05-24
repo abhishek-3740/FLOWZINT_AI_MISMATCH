@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { getLocal, setLocal } from "../../utils/storage";
+import { notifications as notificationPreview } from "../../data/mockData";
 
 const initialNotifications = [
   {
@@ -57,11 +58,27 @@ const filters = [
   { label: "Reports", value: "report" }
 ];
 
+function normalizeNotification(item, fallbackIndex = 0) {
+  const safe = item ?? {};
+
+  return {
+    id: safe.id ?? fallbackIndex + 1,
+    title: String(safe.title || safe.label || "Notification"),
+    summary: String(safe.summary || ""),
+    details: String(safe.details || safe.summary || ""),
+    tag: String(safe.tag || "Update"),
+    tone: ["rose", "teal", "indigo", "amber"].includes(safe.tone) ? safe.tone : "indigo",
+    category: String(safe.category || "report"),
+    time: String(safe.time || "Just now"),
+    read: Boolean(safe.read)
+  };
+}
+
 export default function NotificationsPage() {
   const ref = useRef(null);
-  const [items, setItems] = useState(() => getLocal("notifications", initialNotifications));
+  const [items, setItems] = useState(() => getLocal("notifications", initialNotifications).map(normalizeNotification));
   const [filter, setFilter] = useState("all");
-  const [expandedId, setExpandedId] = useState(1);
+  const [expandedId, setExpandedId] = useState(initialNotifications[0].id);
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -251,7 +268,7 @@ export default function NotificationsPage() {
           )}
 
           <div className="mt-4 space-y-3">
-            {notifications.map((item, index) => (
+            {notificationPreview.map((item, index) => (
               <button
                 key={item}
                 type="button"

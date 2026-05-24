@@ -14,6 +14,22 @@ const statusStyle = {
   Shipped: "bg-emerald-50 text-emerald-700 border-emerald-200"
 };
 
+function normalizeOrder(order, fallbackIndex = 0) {
+  const safe = order ?? {};
+
+  return {
+    id: String(safe.id || `ORD-${Date.now().toString().slice(-4)}-${fallbackIndex}`),
+    item: String(safe.item || safe.name || "Imported item"),
+    supplier: String(safe.supplier || "Imported supplier"),
+    quantity: Number(safe.quantity ?? safe.qty ?? 0) || 0,
+    total: Number(safe.total ?? 0) || 0,
+    eta: String(safe.eta || ""),
+    status: statusStyle[safe.status] ? safe.status : "Draft",
+    source: String(safe.source || "import"),
+    createdAt: String(safe.createdAt || new Date().toLocaleDateString())
+  };
+}
+
 export default function OrdersPage() {
   const ref = useRef(null);
   const [filter, setFilter] = useState("All");
@@ -62,17 +78,7 @@ export default function OrdersPage() {
   const importOrders = async (file) => {
     try {
       const parsed = await parseCSVFile(file);
-      const mapped = parsed.map((p) => ({
-        id: p.id || `ORD-${Date.now().toString().slice(-4)}`,
-        item: p.item || p.name || "Imported item",
-        supplier: p.supplier || "Imported supplier",
-        quantity: p.quantity || p.qty || 0,
-        total: p.total || 0,
-        eta: p.eta || "",
-        status: p.status || "Draft",
-        source: p.source || "import",
-        createdAt: p.createdAt || new Date().toLocaleDateString()
-      }));
+      const mapped = parsed.map((p, index) => normalizeOrder(p, index));
       setItems((cur) => [...mapped, ...cur]);
       toast.push(`Imported ${mapped.length} orders`);
     } catch (e) {
@@ -80,7 +86,7 @@ export default function OrdersPage() {
     }
   };
 
-  const totalValue = visible.reduce((sum, order) => sum + order.total, 0);
+  const totalValue = visible.reduce((sum, order) => sum + (Number(order.total) || 0), 0);
   const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
   useEffect(() => { if (page > totalPages) setPage(totalPages); }, [totalPages]);
   const pagedVisible = visible.slice((page - 1) * pageSize, (page - 1) * pageSize + pageSize);
@@ -155,7 +161,7 @@ export default function OrdersPage() {
                     <h3 className="mt-1 text-lg font-semibold text-slate-900">{order.item}</h3>
                     <p className="mt-1 text-sm text-slate-500">Supplier: {order.supplier} • Created {order.createdAt}</p>
                   </div>
-                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle[order.status]}`}>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle[order.status] || statusStyle.Draft}`}>
                     {order.status}
                   </span>
                 </div>
@@ -163,11 +169,11 @@ export default function OrdersPage() {
                 <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="rounded-xl bg-slate-50 p-3 text-sm">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Qty</p>
-                    <p className="mt-1 font-semibold text-slate-900">{order.quantity}</p>
+                    <p className="mt-1 font-semibold text-slate-900">{Number(order.quantity) || 0}</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 p-3 text-sm">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">Total</p>
-                    <p className="mt-1 font-semibold text-slate-900">${order.total}</p>
+                    <p className="mt-1 font-semibold text-slate-900">${Number(order.total) || 0}</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 p-3 text-sm">
                     <p className="text-[10px] uppercase tracking-[0.18em] text-slate-400">ETA</p>
@@ -199,15 +205,15 @@ export default function OrdersPage() {
             pagedVisible.map((order) => (
               <article key={order.id} className="order-card flex items-center gap-4 rounded-2xl border border-slate-200 p-4 shadow-sm">
                 <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-slate-900 text-sm font-bold text-white">
-                  {order.id.slice(-2)}
+                  {String(order.id).slice(-2)}
                 </div>
 
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold text-slate-900">{order.item}</h3>
-                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle[order.status]}`}>{order.status}</span>
+                    <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle[order.status] || statusStyle.Draft}`}>{order.status}</span>
                   </div>
-                  <p className="mt-1 text-sm text-slate-500">{order.supplier} • Qty {order.quantity} • ETA {order.eta}</p>
+                  <p className="mt-1 text-sm text-slate-500">{order.supplier} • Qty {Number(order.quantity) || 0} • ETA {order.eta}</p>
                   <div className="mt-2 flex flex-wrap gap-4 text-xs text-slate-500">
                     <span>{order.id}</span>
                     <span>${order.total}</span>
@@ -246,11 +252,11 @@ export default function OrdersPage() {
                       <td className="px-4 py-3 font-medium">{order.id}</td>
                       <td className="px-4 py-3">{order.item}</td>
                       <td className="px-4 py-3">{order.supplier}</td>
-                      <td className="px-4 py-3">{order.quantity}</td>
-                      <td className="px-4 py-3">${order.total}</td>
+                      <td className="px-4 py-3">{Number(order.quantity) || 0}</td>
+                      <td className="px-4 py-3">${Number(order.total) || 0}</td>
                       <td className="px-4 py-3">{order.eta}</td>
                       <td className="px-4 py-3">
-                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle[order.status]}`}>
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyle[order.status] || statusStyle.Draft}`}>
                           {order.status}
                         </span>
                       </td>
